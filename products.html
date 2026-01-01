@@ -1,0 +1,19 @@
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>عرض المنتجات</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header><h1>عرض المنتجات</h1></header>
+<input id="search" placeholder="بحث..." onkeyup="searchProduct()">
+<table id="productTable">
+<tr><th>الاسم</th><th>الايتم</th><th>الباركود</th><th>العدد</th><th>السعر</th></tr>
+<tr><td>منتج 1</td><td>1001</td><td>123456</td><td>10</td><td>5000</td></tr>
+</table>
+<script src="js/script.js"></script>
+<script>ensureSeedProducts();renderProductsTable();</script>
+</body>
+</html>

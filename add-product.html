@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إضافة / جلب منتج بالباركود</title>
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+</head>
+<body>
+
+<header><h1>إضافة / جلب منتج</h1></header>
+
+<div class="card">
+  <h2>مسح باركود لجلب المنتج</h2>
+  <div class="row">
+    <input id="scanBarcodeInput" placeholder="او اكتب الباركود هنا" />
+    <button type="button" class="btn info" onclick="lookupByBarcodeFromInput()">بحث</button>
+  </div>
+
+  <div class="row">
+    <button type="button" class="btn primary" onclick="startScanner()">ابدأ المسح</button>
+    <button type="button" class="btn warning" onclick="stopScanner()">إيقاف</button>
+  </div>
+
+  <div id="scanner" class="scanner"></div>
+  <div id="lookupStatus" class="status"></div>
+</div>
+
+<form class="form" onsubmit="saveProductFromForm(event)">
+  <h2>بيانات المنتج</h2>
+  <input id="pName" placeholder="اسم المنتج" required>
+  <input id="pItem" placeholder="رقم الايتم" required>
+  <input id="pBarcode" placeholder="الباركود" required>
+  <input id="pQty" type="number" placeholder="العدد" required>
+  <input id="pPrice" type="number" placeholder="السعر" required>
+  <textarea id="pDesc" placeholder="وصف المنتج (اختياري)"></textarea>
+
+  <button class="btn success" type="submit">حفظ / تحديث</button>
+</form>
+
+<script src="js/script.js"></script>
+<script>
+  // عند فتح الصفحة: تهيئة البيانات الافتراضية (لو ماكو شي مخزون)
+  ensureSeedProducts();
+
+  function fillForm(product){
+    document.getElementById("pName").value = product.name || "";
+    document.getElementById("pItem").value = product.item || "";
+    document.getElementById("pBarcode").value = product.barcode || "";
+    document.getElementById("pQty").value = product.qty ?? "";
+    document.getElementById("pPrice").value = product.price ?? "";
+    document.getElementById("pDesc").value = product.desc || "";
+  }
+
+  function setStatus(msg, ok=true){
+    const el = document.getElementById("lookupStatus");
+    el.textContent = msg;
+    el.className = "status " + (ok ? "ok" : "bad");
+  }
+
+  function lookupByBarcode(barcode){
+    if(!barcode) return setStatus("اكتب/امسح باركود أولاً", false);
+    const product = findProductByBarcode(barcode);
+    document.getElementById("scanBarcodeInput").value = barcode;
+    document.getElementById("pBarcode").value = barcode;
+
+    if(product){
+      fillForm(product);
+      setStatus("تم العثور على المنتج وتم تعبئة البيانات ✅");
+    } else {
+      // منتج جديد
+      setStatus("ماكو منتج بهذا الباركود — تقدر تضيفه كمنتج جديد ✨", false);
+      // نخلي الباركود فقط
+      document.getElementById("pBarcode").value = barcode;
+    }
+  }
+
+  function lookupByBarcodeFromInput(){
+    const barcode = document.getElementById("scanBarcodeInput").value.trim();
+    lookupByBarcode(barcode);
+  }
+
+  let scannerRunning = false;
+
+  function startScanner(){
+    if(scannerRunning) return;
+    setStatus("افتح الكاميرا ووجهها على الباركود...", true);
+
+    Quagga.init({
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: document.querySelector('#scanner'),
+        constraints: { facingMode: "environment" }
+      },
+      decoder: {
+        readers: ["ean_reader","ean_8_reader","upc_reader","upc_e_reader","code_128_reader","code_39_reader"]
+      }
+    }, function(err) {
+      if (err) {
+        console.error(err);
+        setStatus("تعذر تشغيل الكاميرا. تأكد تستخدم HTTPS أو Localhost.", false);
+        return;
+      }
+      Quagga.start();
+      scannerRunning = true;
+    });
+
+    Quagga.onDetected(function(result) {
+      const barcode = result.codeResult.code;
+      stopScanner();
+      lookupByBarcode(barcode);
+    });
+  }
+
+  function stopScanner(){
+    if(!scannerRunning) return;
+    try{ Quagga.stop(); }catch(e){}
+    scannerRunning = false;
+  }
+
+  function saveProductFromForm(e){
+    e.preventDefault();
+    const product = {
+      name: document.getElementById("pName").value.trim(),
+      item: document.getElementById("pItem").value.trim(),
+      barcode: document.getElementById("pBarcode").value.trim(),
+      qty: Number(document.getElementById("pQty").value),
+      price: Number(document.getElementById("pPrice").value),
+      desc: document.getElementById("pDesc").value.trim()
+    };
+
+    if(!product.barcode) return setStatus("الباركود مطلوب", false);
+
+    upsertProduct(product);
+    setStatus("تم الحفظ ✅", true);
+  }
+</script>
+
+</body>
+</html>
